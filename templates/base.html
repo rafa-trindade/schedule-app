@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}schedule-app{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="topbar">
+        <a href="{{ url_for('index') }}" class="brand">
+            <span class="prompt">$</span> schedule-app<span class="cursor">_</span>
+        </a>
+        <nav class="nav-links">
+            <a href="{{ url_for('index') }}" class="{{ 'ativo' if request.endpoint == 'index' else '' }}">agenda</a>
+            <a href="{{ url_for('listar_categorias') }}" class="{{ 'ativo' if request.endpoint in ('listar_categorias','editar_categoria') else '' }}">categorias</a>
+        </nav>
+        <a href="{{ url_for('novo_evento') }}" class="btn btn-primary">+ novo evento</a>
+    </header>
+
+    <main class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for categoria, msg in messages %}
+                    <div class="flash flash-{{ categoria }}">
+                        <span class="flash-prefix">{{ '>' if categoria == 'ok' else '!' }}</span> {{ msg }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        // --- mostrar/esconder sidebar de categorias (fica escondida por padrão) ---
+        function toggleSidebar() {
+            const layout = document.getElementById('layout');
+            if (!layout) return;
+            const escondida = layout.classList.toggle('sidebar-hidden');
+            localStorage.setItem('sidebarHidden', escondida ? '1' : '0');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const layout = document.getElementById('layout');
+            if (layout) {
+                const salvo = localStorage.getItem('sidebarHidden');
+                if (salvo === '0') {
+                    layout.classList.remove('sidebar-hidden');
+                }
+            }
+        });
+
+        // --- destaque ao vivo dos eventos que estão rolando agora ---
+        function dataLocalISO(d) {
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
+        function atualizarDestaqueAgora() {
+            const agora = new Date();
+            const hojeIso = dataLocalISO(agora);
+
+            document.querySelectorAll('.evento-tempo').forEach((el) => {
+                const data = el.dataset.data;
+                const diaInteiro = el.dataset.diaInteiro === 'sim';
+                const inicioStr = el.dataset.inicio;
+
+                if (diaInteiro || data !== hojeIso || !inicioStr) {
+                    el.classList.remove('evento-agora');
+                    return;
+                }
+
+                const inicio = new Date(`${data}T${inicioStr}:00`);
+                let fim;
+                const fimStr = el.dataset.fim;
+                if (fimStr) {
+                    fim = new Date(`${data}T${fimStr}:00`);
+                    if (fim <= inicio) fim = new Date(inicio.getTime() + 30 * 60000);
+                } else {
+                    fim = new Date(inicio.getTime() + 30 * 60000);
+                }
+
+                if (agora >= inicio && agora <= fim) {
+                    el.classList.add('evento-agora');
+                } else {
+                    el.classList.remove('evento-agora');
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            atualizarDestaqueAgora();
+            setInterval(atualizarDestaqueAgora, 20000);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}editar categoria · schedule-app{% endblock %}
+
+{% block content %}
+<h2><span class="prompt-inline">#</span> editar categoria</h2>
+
+<form method="post" class="form-evento">
+    <label>nome *</label>
+    <input type="text" name="nome" value="{{ categoria.nome }}" required autofocus>
+
+    <label>cor</label>
+    <input type="color" name="cor" value="{{ categoria.cor }}">
+
+    <div class="acoes-form">
+        <button type="submit" class="btn btn-primary">salvar</button>
+        <a href="{{ url_for('listar_categorias') }}" class="btn">cancelar</a>
+    </div>
+</form>
+{% endblock %}

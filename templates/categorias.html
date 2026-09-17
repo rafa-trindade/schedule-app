@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}categorias · schedule-app{% endblock %}
+
+{% block content %}
+<h2><span class="prompt-inline">#</span> categorias</h2>
+
+<table class="tabela-eventos tabela-categorias">
+    <thead>
+        <tr>
+            <th></th>
+            <th>nome</th>
+            <th>eventos</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for c in categorias %}
+        <tr>
+            <td><span class="dot dot-lg" style="background:{{ c.cor }};"></span></td>
+            <td><strong>{{ c.nome }}</strong></td>
+            <td>{{ contagem[c.nome] }}</td>
+            <td class="acoes">
+                <a href="{{ url_for('editar_categoria', categoria_id=c.id) }}" class="btn btn-sm">editar</a>
+
+                {% if contagem[c.nome] == 0 %}
+                <form method="post" action="{{ url_for('excluir_categoria', categoria_id=c.id) }}" onsubmit="return confirm('Excluir a categoria {{ c.nome }}?');" style="display:inline;">
+                    <input type="hidden" name="acao" value="bloquear">
+                    <button type="submit" class="btn btn-sm btn-danger">excluir</button>
+                </form>
+                {% else %}
+                <form method="post" action="{{ url_for('excluir_categoria', categoria_id=c.id) }}" onsubmit="return confirm('Mover os {{ contagem[c.nome] }} evento(s) e excluir a categoria {{ c.nome }}?');" class="form-mover">
+                    <input type="hidden" name="acao" value="mover">
+                    <select name="mover_para" required>
+                        <option value="" disabled selected>mover eventos para...</option>
+                        {% for c2 in categorias if c2.id != c.id %}
+                        <option value="{{ c2.nome }}">{{ c2.nome }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-danger">mover e excluir</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h3 class="titulo-secao"><span class="prompt-inline">+</span> nova categoria</h3>
+<form method="post" action="{{ url_for('nova_categoria') }}" class="form-categoria">
+    <input type="text" name="nome" placeholder="nome da categoria" required>
+    <input type="color" name="cor" value="#58a6ff" title="cor da categoria">
+    <button type="submit" class="btn btn-primary">criar</button>
+</form>
+{% endblock %}

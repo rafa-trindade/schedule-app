@@ -1,0 +1,18 @@
+# Ambientes Virtuais (Essencial para não travar o envio)
+.venv/
+venv/
+env/
+
+# Arquivos de Cache do Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Arquivos de Sistema e Editores
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+*.csv

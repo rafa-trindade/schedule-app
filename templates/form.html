@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}{{ 'novo evento' if modo == 'novo' else 'editar evento' }} · schedule-app{% endblock %}
+
+{% block content %}
+<h2><span class="prompt-inline">#</span> {{ 'novo evento' if modo == 'novo' else 'editar evento' }}</h2>
+
+<form method="post" class="form-evento">
+    <label>categoria</label>
+    <select name="categoria">
+        {% for c in categorias %}
+        <option value="{{ c.nome }}" {% if evento.categoria == c.nome %}selected{% endif %}>{{ c.nome }}</option>
+        {% endfor %}
+    </select>
+
+    <label>título *</label>
+    <input type="text" name="titulo" value="{{ evento.titulo }}" required autofocus>
+
+    <label>descrição</label>
+    <textarea name="descricao" rows="3">{{ evento.descricao }}</textarea>
+
+    <label>local <span class="hint">(link vira clicável automaticamente)</span></label>
+    <input type="text" name="local" value="{{ evento.local }}" placeholder="ex: sala 204, ou https://meet.google.com/xyz">
+
+    <div class="linha">
+        <div>
+            <label>data início *</label>
+            <input type="date" name="data_inicio" value="{{ evento.data_inicio }}" required>
+        </div>
+        <div>
+            <label>hora início</label>
+            <input type="time" name="hora_inicio" value="{{ evento.hora_inicio }}">
+        </div>
+    </div>
+
+    <div class="linha">
+        <div>
+            <label>data fim</label>
+            <input type="date" name="data_fim" value="{{ evento.data_fim }}">
+        </div>
+        <div>
+            <label>hora fim</label>
+            <input type="time" name="hora_fim" value="{{ evento.hora_fim }}">
+        </div>
+    </div>
+
+    <label class="checkbox">
+        <input type="checkbox" name="dia_inteiro" {% if evento.dia_inteiro == 'sim' %}checked{% endif %}>
+        dia inteiro
+    </label>
+
+    <fieldset class="recorrencia-box">
+        <legend>↻ recorrência</legend>
+
+        {% set tipo_atual = evento.recorrencia_tipo or '' %}
+        <div class="rec-tipo-opcoes">
+            <label class="radio">
+                <input type="radio" name="recorrencia_tipo" value="" {% if tipo_atual == '' %}checked{% endif %} onchange="atualizarTipoRecorrencia()">
+                não repete
+            </label>
+            <label class="radio">
+                <input type="radio" name="recorrencia_tipo" value="dias" {% if tipo_atual == 'dias' %}checked{% endif %} onchange="atualizarTipoRecorrencia()">
+                a cada X dias
+            </label>
+            <label class="radio">
+                <input type="radio" name="recorrencia_tipo" value="semana" {% if tipo_atual == 'semana' %}checked{% endif %} onchange="atualizarTipoRecorrencia()">
+                dias da semana
+            </label>
+        </div>
+
+        <div id="rec-campo-dias" class="rec-subcampo">
+            <label>repetir a cada quantos dias?</label>
+            <input type="number" min="1" name="recorrencia_dias" value="{{ evento.recorrencia_dias }}" placeholder="ex: 3, 14...">
+        </div>
+
+        <div id="rec-campo-semana" class="rec-subcampo">
+            <label>em quais dias da semana?</label>
+            {% set dias_marcados = (evento.recorrencia_semana or '').split(',') %}
+            <div class="dias-semana-checks">
+                {% for cod, label in [('seg','Seg'), ('ter','Ter'), ('qua','Qua'), ('qui','Qui'), ('sex','Sex'), ('sab','Sáb'), ('dom','Dom')] %}
+                <label class="check-dia">
+                    <input type="checkbox" name="recorrencia_semana" value="{{ cod }}" {% if cod in dias_marcados %}checked{% endif %}>
+                    {{ label }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <label>repetir até <span class="hint">(opcional, vale pros dois modos acima)</span></label>
+        <input type="date" name="recorrencia_ate" value="{{ evento.recorrencia_ate }}">
+
+        {% if evento.recorrencia %}
+        <p class="hint">recorrência original importada do Google Calendar: <code>{{ evento.recorrencia }}</code></p>
+        {% endif %}
+    </fieldset>
+
+    <script>
+        function atualizarTipoRecorrencia() {
+            const tipo = document.querySelector('input[name="recorrencia_tipo"]:checked').value;
+            document.getElementById('rec-campo-dias').classList.toggle('rec-subcampo-ativo', tipo === 'dias');
+            document.getElementById('rec-campo-semana').classList.toggle('rec-subcampo-ativo', tipo === 'semana');
+        }
+        document.addEventListener('DOMContentLoaded', atualizarTipoRecorrencia);
+    </script>
+
+    <div class="acoes-form">
+        <button type="submit" class="btn btn-primary">salvar</button>
+        <a href="{{ url_for('index') }}" class="btn">cancelar</a>
+    </div>
+</form>
+{% endblock %}

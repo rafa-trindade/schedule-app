@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block title %}schedule-app{% endblock %}
+
+{% macro local_link(local) %}
+    {% if local and (local.startswith('http://') or local.startswith('https://') or local.startswith('www.')) %}
+        <a class="local-link" href="{{ local if local.startswith('http') else 'https://' + local }}" target="_blank" rel="noopener">{{ local }} ↗</a>
+    {% elif local %}
+        {{ local }}
+    {% else %}
+        <span class="muted">—</span>
+    {% endif %}
+{% endmacro %}
+
+{% macro check_concluido(e, data_iso) %}
+<form method="post" action="{{ url_for('alternar_concluido', evento_id=e.id) }}" class="form-check">
+    <input type="hidden" name="data" value="{{ data_iso }}">
+    <input type="hidden" name="voltar_para" value="{{ request.full_path }}">
+    <input type="checkbox" class="check-concluido" onchange="this.form.submit()" title="marcar/desmarcar como concluído" {% if e._concluido %}checked{% endif %}>
+</form>
+{% endmacro %}
+
+{% block content %}
+
+<div class="layout sidebar-hidden" id="layout">
+    <aside class="sidebar">
+        <h3># categorias</h3>
+        <ul class="cat-list">
+            <li>
+                <a class="{{ 'ativo' if not categoria_filtro else '' }}"
+                   href="{{ url_for('index', modo=modo, data=data_alvo_iso, q=busca) }}">
+                    todas <span class="badge">{{ total_futuros }}</span>
+                </a>
+            </li>
+            {% for c in categorias %}
+            <li>
+                <a class="{{ 'ativo' if categoria_filtro == c.nome else '' }}"
+                   href="{{ url_for('index', categoria=c.nome, modo='lista', futuros=1) }}"
+                   title="ver todos os eventos futuros de {{ c.nome }}">
+                    <span class="dot" style="background:{{ c.cor }};"></span>{{ c.nome }}
+                    <span class="badge">{{ contagem[c.nome] }}</span>
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+        <a href="{{ url_for('listar_categorias') }}" class="link-gerenciar">gerenciar categorias →</a>
+    </aside>
+
+    <section class="content">
+        <div class="toolbar">
+            <button type="button" class="btn btn-sm" id="toggle-sidebar-btn" onclick="toggleSidebar()" title="mostrar/esconder categorias">☰</button>
+
+            <div class="view-tabs">
+                <a class="tab {{ 'ativo' if modo == 'dia' else '' }}" href="{{ url_for('index', categoria=categoria_filtro, modo='dia') }}">Hoje</a>
+                {# <a class="tab {{ 'ativo' if modo == 'semana' else '' }}" href="{{ url_for('index', categoria=categoria_filtro, modo='semana', data=data_alvo_iso) }}">semana</a> #}
+                <a class="tab {{ 'ativo' if modo == 'lista' else '' }}" href="{{ url_for('index', categoria=categoria_filtro, modo='lista') }}">Lista</a>
+            </div>
+
+            <form class="search-bar" method="get">
+                {% if categoria_filtro %}<input type="hidden" name="categoria" value="{{ categoria_filtro }}">{% endif %}
+                <input type="hidden" name="modo" value="lista">
+                <span class="prompt-inline">grep</span>
+                <input type="text" name="q" placeholder="buscar..." value="{{ busca }}">
+                <button type="submit" class="btn btn-sm">buscar</button>
+            </form>
+        </div>
+
+        {% if modo == 'lista' and apenas_futuros %}
+        <div class="aviso-filtro">
+            mostrando apenas eventos futuros/atuais{% if categoria_filtro %} de <strong>{{ categoria_filtro }}</strong>{% endif %}
+            · <a href="{{ url_for('index', categoria=categoria_filtro, modo='lista') }}">ver todos →</a>
+        </div>
+        {% endif %}
+
+        {% if modo == 'dia' %}
+        <div class="day-nav">
+            <a class="btn btn-sm" href="{{ url_for('index', categoria=categoria_filtro, data=dia_anterior) }}">← anterior</a>
+            <div class="day-nav-titulo">
+                <span class="day-nav-data">{{ data_alvo_extenso }}</span>
+                {% if eh_hoje %}<span class="tag-hoje">hoje</span>{% endif %}
+            </div>
+            <a class="btn btn-sm" href="{{ url_for('index', categoria=categoria_filtro, data=dia_seguinte) }}">próximo →</a>
+        </div>
+        {% if not eh_hoje %}
+        <div class="voltar-hoje">
+            <a href="{{ url_for('index', categoria=categoria_filtro) }}">← voltar para hoje</a>
+        </div>
+        {% endif %}
+        {% endif %}
+
+        {% if modo == 'semana' %}
+        <div class="week-nav">
+            <a class="btn btn-sm" href="{{ url_for('index', categoria=categoria_filtro, modo='semana', data=semana_anterior) }}">← semana anterior</a>
+            <div class="day-nav-titulo">
+                <span class="day-nav-data">{{ semana_titulo }}</span>
+                {% if semana_atual %}<span class="tag-hoje">semana atual</span>{% endif %}
+            </div>
+            <a class="btn btn-sm" href="{{ url_for('index', categoria=categoria_filtro, modo='semana', data=semana_seguinte) }}">próxima semana →</a>
+        </div>
+
+        <div class="week-grid">
+            {% for dia in dias_semana %}
+            <div class="week-day {{ 'week-day-hoje' if dia.eh_hoje else '' }}">
+                <div class="week-day-header">
+                    <span class="week-day-label">{{ dia.label }}</span>
+                    <span class="week-day-num">{{ '%02d'|format(dia.dia_num) }}/{{ '%02d'|format(dia.mes_num) }}</span>
+                </div>
+                <div class="week-day-eventos">
+                    {% for e in dia.eventos %}
+                    <div class="week-evento evento-tempo {{ 'week-evento-concluido' if e._concluido else '' }}"
+                         style="border-left-color: {{ cores_por_categoria.get(e.categoria, '#484f58') }};"
+                         data-data="{{ dia.data_iso }}"
+                         data-inicio="{{ e.hora_inicio }}"
+                         data-fim="{{ e.hora_fim }}"
+                         data-dia-inteiro="{{ e.dia_inteiro }}">
+                        {{ check_concluido(e, dia.data_iso) }}
+                        <a class="week-evento-info" href="{{ url_for('editar_evento', evento_id=e.id) }}">
+                            <span class="week-evento-hora">{% if e.dia_inteiro == 'sim' %}dia todo{% else %}{{ e.hora_inicio }}{% endif %}</span>
+                            <span class="week-evento-titulo">{{ e.titulo }}</span>
+                        </a>
+                    </div>
+                    {% else %}
+                    <p class="week-day-vazio">—</p>
+                    {% endfor %}
+                </div>
+                <a class="week-day-add" href="{{ url_for('novo_evento', data=dia.data_iso) }}">+ evento</a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+
+        {% if eventos %}
+        <table class="tabela-eventos">
+            <thead>
+                <tr>
+                    {% if modo == 'dia' %}<th></th>{% endif %}
+                    {% if modo == 'lista' %}<th>data</th>{% endif %}
+                    <th>hora</th>
+                    <th>título</th>
+                    <th>categoria</th>
+                    <th>local</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in eventos %}
+                <tr class="{{ 'linha-concluida' if e._concluido else '' }} {{ 'evento-tempo' if modo == 'dia' else '' }}"
+                    {% if modo == 'dia' %}
+                    data-data="{{ data_alvo_iso }}"
+                    data-inicio="{{ e.hora_inicio }}"
+                    data-fim="{{ e.hora_fim }}"
+                    data-dia-inteiro="{{ e.dia_inteiro }}"
+                    {% endif %}>
+                    {% if modo == 'dia' %}
+                    <td class="col-check">{{ check_concluido(e, data_alvo_iso) }}</td>
+                    {% endif %}
+                    {% if modo == 'lista' %}
+                    <td>{{ e.data_inicio|br_data }}{% if e.data_fim and e.data_fim != e.data_inicio %} → {{ e.data_fim|br_data }}{% endif %}</td>
+                    {% endif %}
+                    <td>{% if e.dia_inteiro == 'sim' %}dia inteiro{% else %}{{ e.hora_inicio }}{% if e.hora_fim %}–{{ e.hora_fim }}{% endif %}{% endif %}</td>
+                    <td>
+                        <strong>{{ e.titulo }}</strong>
+                        {% if e.recorrencia_tipo or e.recorrencia_dias %}<span class="badge-rec">↻ {{ e|rec_label }}</span>{% endif %}
+                        {% if e.descricao %}<div class="descricao-mini">{{ e.descricao[:80] }}{% if e.descricao|length > 80 %}...{% endif %}</div>{% endif %}
+                    </td>
+                    <td><span class="tag" style="background:{{ cores_por_categoria.get(e.categoria, '#484f58') }};">{{ e.categoria }}</span></td>
+                    <td>{{ local_link(e.local) }}</td>
+                    <td class="acoes">
+                        <a href="{{ url_for('editar_evento', evento_id=e.id) }}" class="btn btn-sm">editar</a>
+                        <form method="post" action="{{ url_for('excluir_evento', evento_id=e.id) }}" onsubmit="return confirm('Excluir este evento?');" style="display:inline;">
+                            <button type="submit" class="btn btn-sm btn-danger">excluir</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="vazio">
+            {% if modo == 'dia' %}nenhum evento nesse dia.{% else %}nenhum evento encontrado.{% endif %}
+        </p>
+        {% endif %}
+        {% endif %}
+    </section>
+</div>
+{% endblock %}
